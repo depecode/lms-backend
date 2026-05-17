@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: lms-api
+    env: docker
+    plan: free
+    healthCheckPath: /api/v1/health/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lms-db
+          property: connectionString
+      - key: RUST_LOG
+        value: info
+      - key: APP_HOST
+        value: 0.0.0.0
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXP_HOURS
+        value: 24
+
+databases:
+  - name: lms-db
+    plan: free

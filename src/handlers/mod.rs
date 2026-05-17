@@ -1,2 +1,14 @@
 pub mod user_handler; 
 pub mod auth_handler;
+pub mod borrower_handler;
+pub mod loan_handler;
+pub mod loan_product_handler;
+pub mod repayment_handler;
+pub mod savings_handler;
+pub mod accounting_handler;
+pub mod report_handler;
+pub mod setting_handler;
+pub mod document_handler;
+pub mod workflow_handler;
+pub mod investor_handler;
+pub mod notification_handler;

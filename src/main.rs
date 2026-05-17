@@ -1,35 +1,32 @@
-use actix_web::{App, HttpServer, web};
-use handlers::auth_handler;
-use sqlx::postgres::PgPoolOptions;
-use dotenvy::dotenv;
-use std::env;
-
-mod auth;
-mod routes;
-mod handlers;
-mod models;
-mod middleware;
+use actix_web::{web, App, HttpServer};
+use lms_api::config::AppConfig;
+use lms_api::db::establish_connection;
+use lms_api::routes;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    dotenv().ok();
+    // 1. Load configuration
+    let config = AppConfig::from_env();
 
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    // 2. Initialize logger
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or(&config.rust_log));
 
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
-        .await
-        .expect("Failed to connect to Postgres");
+    // 3. Initialize database connection
+    let pool = establish_connection(&config).await;
 
+    println!("Starting server at http://{}:{}", config.app_host, config.app_port);
+
+    let host = config.app_host.clone();
+    let port = config.app_port;
+
+    // 3. Start HttpServer
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(pool.clone()))  // ✅ Register here
-            .service(handlers::auth_handler::login)
+            .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(config.clone()))
             .configure(routes::init)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind((host, port))?
     .run()
     .await
 }

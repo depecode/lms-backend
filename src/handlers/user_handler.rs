@@ -1,91 +1,79 @@
-use actix_web::{get, post, put, delete, web, HttpResponse, Responder};
-use sqlx::PgPool;
-use uuid::Uuid;
+use actix_web::{get, post, patch, delete, web, HttpResponse, Responder};
+use crate::models::response::ApiResponse;
 
-use crate::models::user::{User, CreateUser, UpdateUser};
-
-#[post("/users")]
-pub async fn create_user(pool: web::Data<PgPool>, data: web::Json<CreateUser>) -> impl Responder {
-    let user = sqlx::query_as::<_, User>(
-        r#"
-        INSERT INTO users (name, email)
-        VALUES ($1, $2)
-        RETURNING *
-        "#
-    )
-    .bind(&data.name)
-    .bind(&data.email)
-    .fetch_one(pool.get_ref())
-    .await;
-
-    match user {
-        Ok(user) => HttpResponse::Ok().json(user),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-    }
+#[utoipa::path(
+    post,
+    path = "/api/v1/users",
+    responses(
+        (status = 201, description = "User created", body = ApiResponse<serde_json::Value>)
+    ),
+    tag = "Users"
+)]
+#[post("/")]
+pub async fn create_user() -> impl Responder {
+    HttpResponse::Created().json(ApiResponse::<()>::message("User created"))
 }
 
-#[get("/users")]
-pub async fn get_users(pool: web::Data<PgPool>) -> impl Responder {
-    let users = sqlx::query_as::<_, User>("SELECT * FROM users")
-        .fetch_all(pool.get_ref())
-        .await;
-
-    match users {
-        Ok(users) => HttpResponse::Ok().json(users),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-    }
+#[utoipa::path(
+    get,
+    path = "/api/v1/users",
+    responses(
+        (status = 200, description = "List users", body = ApiResponse<serde_json::Value>)
+    ),
+    tag = "Users"
+)]
+#[get("/")]
+pub async fn get_users() -> impl Responder {
+    HttpResponse::Ok().json(ApiResponse::<()>::message("List users"))
 }
 
-#[get("/users/{id}")]
-pub async fn get_user(pool: web::Data<PgPool>, id: web::Path<Uuid>) -> impl Responder {
-    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
-        .bind(*id)
-        .fetch_one(pool.get_ref())
-        .await;
-
-    match user {
-        Ok(user) => HttpResponse::Ok().json(user),
-        Err(e) => HttpResponse::NotFound().body(e.to_string()),
-    }
+#[utoipa::path(
+    get,
+    path = "/api/v1/users/{id}",
+    params(
+        ("id" = String, Path, description = "User ID")
+    ),
+    responses(
+        (status = 200, description = "Get user", body = ApiResponse<serde_json::Value>)
+    ),
+    tag = "Users"
+)]
+#[get("/{id}")]
+pub async fn get_user(path: web::Path<String>) -> impl Responder {
+    let id = path.into_inner();
+    HttpResponse::Ok().json(ApiResponse::<()>::message(&format!("Get user {}", id)))
 }
 
-#[put("/users/{id}")]
-pub async fn update_user(
-    pool: web::Data<PgPool>,
-    id: web::Path<Uuid>,
-    data: web::Json<UpdateUser>,
-) -> impl Responder {
-    let user = sqlx::query_as::<_, User>(
-        r#"
-        UPDATE users
-        SET name = COALESCE($1, name),
-            email = COALESCE($2, email),
-            updated_at = NOW()
-        WHERE id = $3
-        RETURNING *
-        "#
-    )
-    .bind(&data.name)
-    .bind(&data.email)
-    .bind(*id)
-    .fetch_one(pool.get_ref())
-    .await;
-
-    match user {
-        Ok(user) => HttpResponse::Ok().json(user),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-    }
+#[utoipa::path(
+    patch,
+    path = "/api/v1/users/{id}",
+    params(
+        ("id" = String, Path, description = "User ID")
+    ),
+    responses(
+        (status = 200, description = "Update user", body = ApiResponse<serde_json::Value>)
+    ),
+    tag = "Users"
+)]
+#[patch("/{id}")]
+pub async fn update_user(path: web::Path<String>) -> impl Responder {
+    let id = path.into_inner();
+    HttpResponse::Ok().json(ApiResponse::<()>::message(&format!("Update user {}", id)))
 }
 
-#[delete("/users/{id}")]
-pub async fn delete_user(pool: web::Data<PgPool>, id: web::Path<Uuid>) -> impl Responder {
-    let result = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(*id)
-        .execute(pool.get_ref())
-        .await;
-
-    match result {
-        Ok(_) => HttpResponse::Ok().body("User deleted"),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-    }
+#[utoipa::path(
+    delete,
+    path = "/api/v1/users/{id}",
+    params(
+        ("id" = String, Path, description = "User ID")
+    ),
+    responses(
+        (status = 200, description = "Delete user", body = ApiResponse<serde_json::Value>)
+    ),
+    tag = "Users"
+)]
+#[delete("/{id}")]
+pub async fn delete_user(path: web::Path<String>) -> impl Responder {
+    let id = path.into_inner();
+    HttpResponse::Ok().json(ApiResponse::<()>::message(&format!("Delete user {}", id)))
 }
