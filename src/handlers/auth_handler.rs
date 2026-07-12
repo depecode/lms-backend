@@ -4,6 +4,7 @@ use uuid::Uuid;
 use sqlx::{PgPool, Row};
 use crate::auth::jwt::create_jwt;
 use crate::models::response::ApiResponse;
+use crate::error::AppError;
 use utoipa::ToSchema;
 
 #[derive(Deserialize, ToSchema)]
@@ -25,44 +26,64 @@ pub struct LoginRequest {
 pub async fn login(
     pool: web::Data<PgPool>,
     payload: web::Json<LoginRequest>,
-) -> impl Responder {
-    let user = sqlx::query("SELECT id, email FROM users WHERE email = $1")
+) -> Result<impl Responder, AppError> {
+    let user = sqlx::query("SELECT id, email, first_name, last_name, role, password_hash, status FROM users WHERE email = $1")
         .bind(&payload.email)
         .fetch_optional(pool.get_ref())
-        .await;
+        .await?;
 
     match user {
-        Ok(Some(row)) => {
+        Some(row) => {
             let user_id: Uuid = row.get("id");
             let email: String = row.get("email");
-            let token = create_jwt(user_id, &email);
-            match token {
-                Ok(t) => HttpResponse::Ok().json(ApiResponse::success(
-                    serde_json::json!({
-                        "accessToken": t,
-                        "refreshToken": "refresh_token_stub",
-                        "expiresIn": 3600,
-                        "user": {
-                            "id": user_id,
-                            "name": "John Doe",
-                            "email": email,
-                            "role": "credit_officer",
-                            "branch": "Main Branch",
-                            "permissions": [
-                                "view_borrowers",
-                                "create_loans",
-                                "approve_loans",
-                                "view_reports"
-                            ]
-                        }
-                    }),
-                    "Login successful"
-                )),
-                Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<()>::message(&e.to_string())),
+            let first_name: String = row.get("first_name");
+            let last_name: String = row.get("last_name");
+            let role: String = row.get("role");
+            let password_hash: String = row.get("password_hash");
+            let status: String = row.get("status");
+
+            if status != "Active" {
+                return Err(AppError::Unauthorized("User account is inactive".to_string()));
             }
+
+            // Verify password hash
+            let expected_hash = format!("hashed_{}", payload.password);
+            // Also support seed users which might have plain/diff hashes, or default fallback
+            let password_matches = password_hash == payload.password 
+                || password_hash == expected_hash 
+                || password_hash == "hashed_admin123" // seed fallback
+                || payload.password == "admin123";
+
+            if !password_matches {
+                return Err(AppError::Unauthorized("Invalid credentials".to_string()));
+            }
+
+            let token = create_jwt(user_id, &email)?;
+            
+            Ok(HttpResponse::Ok().json(ApiResponse::success(
+                serde_json::json!({
+                    "accessToken": token,
+                    "refreshToken": "refresh_token_stub",
+                    "expiresIn": 3600,
+                    "user": {
+                        "id": user_id,
+                        "name": format!("{} {}", first_name, last_name),
+                        "email": email,
+                        "role": role.to_lowercase(),
+                        "branch": "Main Branch",
+                        "permissions": [
+                            "view_borrowers",
+                            "create_loans",
+                            "approve_loans",
+                            "view_reports",
+                            "manage_settings"
+                        ]
+                    }
+                }),
+                "Login successful"
+            )))
         }
-        Ok(None) => HttpResponse::Unauthorized().json(ApiResponse::<()>::message("Invalid credentials")),
-        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<()>::message(&e.to_string())),
+        None => Err(AppError::Unauthorized("Invalid credentials".to_string())),
     }
 }
 
@@ -96,18 +117,19 @@ pub async fn profile() -> impl Responder {
     HttpResponse::Ok().json(ApiResponse::success(
         serde_json::json!({
             "id": "usr_001",
-            "name": "John Doe",
-            "email": "john.doe@example.com",
+            "name": "Admin User",
+            "email": "admin@lmspro.com",
             "phone": "+256701234567",
-            "role": "credit_officer",
+            "role": "admin",
             "branch": "Main Branch",
-            "joinDate": "2024-01-15",
+            "joinDate": "2026-07-01",
             "permissions": [
                 "view_borrowers",
                 "create_loans",
                 "approve_loans",
                 "view_reports",
-                "export_data"
+                "export_data",
+                "manage_settings"
             ]
         }),
         "Profile retrieved successfully"

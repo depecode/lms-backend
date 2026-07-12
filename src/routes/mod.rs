@@ -4,7 +4,9 @@ use crate::handlers::{
     auth_handler, borrower_handler, loan_handler, loan_product_handler,
     repayment_handler, savings_handler, accounting_handler, report_handler,
     setting_handler, document_handler, workflow_handler, investor_handler,
-    notification_handler, user_handler
+    notification_handler, user_handler, custom_field_handler, communication_handler,
+    payment_arrangement_handler, onboarding_handler, expense_handler, collateral_handler,
+    guarantor_handler, borrower_group_handler
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -23,6 +25,22 @@ use crate::models::response::{ApiResponse, ResponseMeta, PaginatedResponse, Pagi
         borrower_handler::update_borrower,
         borrower_handler::list_groups,
         borrower_handler::list_guarantors,
+        borrower_group_handler::get_groups,
+        borrower_group_handler::get_group,
+        borrower_group_handler::get_groups_by_borrower,
+        borrower_group_handler::create_group,
+        borrower_group_handler::update_group,
+        borrower_group_handler::add_member,
+        borrower_group_handler::remove_member,
+        borrower_group_handler::delete_group,
+        guarantor_handler::get_guarantors,
+        guarantor_handler::get_guarantor,
+        guarantor_handler::get_guarantors_for_loan,
+        guarantor_handler::create_guarantor,
+        guarantor_handler::update_guarantor,
+        guarantor_handler::update_guarantor_status,
+        guarantor_handler::upload_signature,
+        guarantor_handler::get_liabilities,
         loan_handler::list_loans,
         loan_handler::submit_loan,
         loan_handler::get_loan,
@@ -35,29 +53,118 @@ use crate::models::response::{ApiResponse, ResponseMeta, PaginatedResponse, Pagi
         repayment_handler::list_repayments,
         repayment_handler::record_payment,
         repayment_handler::list_arrears,
+        repayment_handler::get_arrears,
+        repayment_handler::get_arrears_by_id,
+        repayment_handler::get_arrears_by_loan,
+        repayment_handler::record_default,
+        repayment_handler::update_arrears_status,
+        repayment_handler::update_collection_strategy,
+        repayment_handler::resolve_arrears,
+        repayment_handler::get_arrears_aging_summary,
         savings_handler::list_savings_accounts,
         savings_handler::bulk_upload_deposits,
         savings_handler::get_account_history,
+        savings_handler::get_accounts,
+        savings_handler::get_account,
+        savings_handler::get_transactions,
+        savings_handler::deposit,
+        savings_handler::withdraw,
+        savings_handler::create_account,
+        savings_handler::get_savings_kpi,
         accounting_handler::get_ledger,
         accounting_handler::get_statements,
         accounting_handler::record_other_income,
+        accounting_handler::get_income_records,
+        accounting_handler::get_income_by_id,
+        accounting_handler::record_income,
+        accounting_handler::update_income_status,
+        accounting_handler::get_income_summary,
+        accounting_handler::get_trial_balance,
+        accounting_handler::record_transaction,
+        accounting_handler::get_accounting_kpi,
         report_handler::get_portfolio_summary,
         report_handler::get_loan_stats,
         report_handler::export_report,
+        report_handler::get_reports,
+        report_handler::generate_report,
+        report_handler::schedule_report,
+        report_handler::get_report_kpi,
         setting_handler::list_branches,
         setting_handler::create_branch,
         setting_handler::list_staff,
         setting_handler::create_staff,
         setting_handler::get_audit_logs,
         document_handler::upload_doc,
+        document_handler::get_docs,
+        document_handler::get_entity_docs,
+        document_handler::get_doc,
+        document_handler::verify_doc,
+        document_handler::download_doc,
+        document_handler::get_doc_versions,
+        document_handler::delete_doc,
         workflow_handler::list_tasks,
+        workflow_handler::get_workflows,
+        workflow_handler::get_workflow,
+        workflow_handler::create_workflow,
+        workflow_handler::get_instances,
+        workflow_handler::start_workflow,
+        workflow_handler::complete_task,
+        workflow_handler::reject_task,
         investor_handler::list_investors,
+        investor_handler::get_investor,
+        investor_handler::create_investor,
+        investor_handler::update_investor,
+        investor_handler::get_investments,
+        investor_handler::record_investment,
+        investor_handler::get_metrics,
+        investor_handler::delete_investor,
         notification_handler::list_notifications,
+        notification_handler::get_notifications,
+        notification_handler::get_notification,
+        notification_handler::mark_as_read,
+        notification_handler::mark_all_as_read,
+        notification_handler::delete_notification,
+        notification_handler::get_templates,
+        notification_handler::send_notification,
         user_handler::create_user,
         user_handler::get_users,
         user_handler::get_user,
         user_handler::update_user,
         user_handler::delete_user,
+        custom_field_handler::list_fields,
+        custom_field_handler::get_field,
+        custom_field_handler::create_field,
+        custom_field_handler::update_field,
+        custom_field_handler::delete_field,
+        custom_field_handler::get_borrower_data,
+        custom_field_handler::save_borrower_data,
+        communication_handler::get_templates,
+        communication_handler::get_template,
+        communication_handler::create_template,
+        communication_handler::update_template,
+        communication_handler::send_message,
+        communication_handler::send_bulk_messages,
+        communication_handler::get_message_history,
+        payment_arrangement_handler::create_arrangement,
+        payment_arrangement_handler::get_arrangement,
+        payment_arrangement_handler::get_arrangement_by_loan,
+        onboarding_handler::generate_cifid,
+        onboarding_handler::create_savings,
+        onboarding_handler::create_loan,
+        expense_handler::get_expenses,
+        expense_handler::get_categories,
+        expense_handler::create_expense,
+        expense_handler::update_expense,
+        expense_handler::delete_expense,
+        expense_handler::approve_expense,
+        expense_handler::get_expense_kpi,
+        collateral_handler::get_collaterals,
+        collateral_handler::get_collateral,
+        collateral_handler::create_collateral,
+        collateral_handler::update_collateral,
+        collateral_handler::appraise,
+        collateral_handler::release,
+        collateral_handler::delete_collateral,
         health::health_check,
     ),
     components(
@@ -77,101 +184,267 @@ use crate::models::response::{ApiResponse, ResponseMeta, PaginatedResponse, Pagi
 )]
 struct ApiDoc;
 
+fn configure_common_routes(cfg: &mut web::ServiceConfig) {
+    cfg.service(health::health_check)
+        .service(
+            web::scope("/auth")
+                .service(auth_handler::login)
+                .service(auth_handler::refresh)
+                .service(auth_handler::profile)
+                .service(auth_handler::logout)
+        )
+        .service(
+            web::scope("/borrowers")
+                .service(borrower_handler::list_borrowers)
+                .service(borrower_handler::create_borrower)
+                .service(borrower_handler::list_groups)
+                .service(borrower_handler::list_guarantors)
+                .service(borrower_handler::get_borrower)
+                .service(borrower_handler::update_borrower)
+        )
+        .service(
+            web::scope("/borrower-groups")
+                .service(borrower_group_handler::get_groups)
+                .service(borrower_group_handler::get_group)
+                .service(borrower_group_handler::get_groups_by_borrower)
+                .service(borrower_group_handler::create_group)
+                .service(borrower_group_handler::update_group)
+                .service(borrower_group_handler::add_member)
+                .service(borrower_group_handler::remove_member)
+                .service(borrower_group_handler::delete_group)
+        )
+        .service(
+            web::scope("/guarantors")
+                .service(guarantor_handler::get_guarantors)
+                .service(guarantor_handler::get_guarantor)
+                .service(guarantor_handler::get_guarantors_for_loan)
+                .service(guarantor_handler::create_guarantor)
+                .service(guarantor_handler::update_guarantor)
+                .service(guarantor_handler::update_guarantor_status)
+                .service(guarantor_handler::upload_signature)
+                .service(guarantor_handler::get_liabilities)
+                .service(guarantor_handler::delete_guarantor)
+        )
+        .service(
+            web::scope("/loans")
+                .service(loan_handler::list_loans)
+                .service(loan_handler::submit_loan)
+                .service(loan_handler::get_loan)
+                .service(loan_handler::approve_loan)
+                .service(loan_handler::disburse_loan)
+                .service(loan_handler::get_loan_scoring)
+        )
+        .service(
+            web::scope("/loan-products")
+                .service(loan_product_handler::list_products)
+                .service(loan_product_handler::create_product)
+                .service(loan_product_handler::get_product)
+        )
+        .service(
+            web::scope("/repayments")
+                .service(repayment_handler::list_repayments)
+                .service(repayment_handler::record_payment)
+                .service(repayment_handler::list_arrears)
+        )
+        .service(
+            web::scope("/arrears")
+                .service(repayment_handler::get_arrears)
+                .service(repayment_handler::get_arrears_by_loan)
+                .service(repayment_handler::record_default)
+                .service(repayment_handler::get_arrears_aging_summary)
+                .service(repayment_handler::get_arrears_by_id)
+                .service(repayment_handler::update_arrears_status)
+                .service(repayment_handler::update_collection_strategy)
+                .service(repayment_handler::resolve_arrears)
+        )
+        .service(
+            web::scope("/savings")
+                .service(savings_handler::list_savings_accounts)
+                .service(savings_handler::bulk_upload_deposits)
+                .service(savings_handler::get_account_history)
+                .route("/accounts", web::get().to(savings_handler::get_accounts))
+                .route("/accounts/", web::get().to(savings_handler::get_accounts))
+                .route("/accounts", web::post().to(savings_handler::create_account))
+                .route("/accounts/", web::post().to(savings_handler::create_account))
+                .service(savings_handler::get_transactions)
+                .service(savings_handler::deposit)
+                .service(savings_handler::withdraw)
+                .service(savings_handler::get_savings_kpi)
+                .service(savings_handler::get_account)
+        )
+        .service(
+            web::scope("/accounting")
+                .service(accounting_handler::get_ledger)
+                .service(accounting_handler::get_statements)
+                .service(accounting_handler::record_other_income)
+                .service(accounting_handler::get_trial_balance)
+                .service(accounting_handler::record_transaction)
+                .service(accounting_handler::get_accounting_kpi)
+        )
+        .service(
+            web::scope("/other-income")
+                .service(accounting_handler::get_income_records)
+                .service(accounting_handler::record_income)
+                .service(accounting_handler::get_income_summary)
+                .service(accounting_handler::get_income_by_id)
+                .service(accounting_handler::update_income_status)
+        )
+        .service(
+            web::scope("/settings")
+                .service(setting_handler::list_branches)
+                .service(setting_handler::create_branch)
+                .service(setting_handler::list_staff)
+                .service(setting_handler::create_staff)
+                .service(setting_handler::get_audit_logs)
+        )
+        .service(
+            web::scope("/branches")
+                .service(setting_handler::list_branches)
+                .service(setting_handler::create_branch)
+        )
+        .service(
+            web::scope("/documents")
+                .service(document_handler::upload_doc)
+                .service(document_handler::get_docs)
+                .service(document_handler::get_entity_docs)
+                .service(document_handler::get_doc)
+                .service(document_handler::verify_doc)
+                .service(document_handler::download_doc)
+                .service(document_handler::get_doc_versions)
+                .service(document_handler::delete_doc)
+        )
+        .service(
+            web::scope("/docs")
+                .service(document_handler::upload_doc)
+                .service(document_handler::get_docs)
+                .service(document_handler::get_entity_docs)
+                .service(document_handler::get_doc)
+                .service(document_handler::verify_doc)
+                .service(document_handler::download_doc)
+                .service(document_handler::get_doc_versions)
+                .service(document_handler::delete_doc)
+        )
+        .service(
+            web::scope("/workflows")
+                .service(workflow_handler::list_tasks)
+                .service(workflow_handler::get_workflows)
+                .service(workflow_handler::create_workflow)
+                .service(workflow_handler::get_instances)
+                .service(workflow_handler::start_workflow)
+                .service(workflow_handler::complete_task)
+                .service(workflow_handler::reject_task)
+                .service(workflow_handler::get_workflow)
+        )
+        .service(
+            web::scope("/investors")
+                .service(investor_handler::list_investors)
+                .service(investor_handler::create_investor)
+                .service(investor_handler::get_investments)
+                .service(investor_handler::record_investment)
+                .service(investor_handler::get_metrics)
+                .service(investor_handler::get_investor)
+                .service(investor_handler::update_investor)
+                .service(investor_handler::delete_investor)
+        )
+        .service(
+            web::scope("/notifications")
+                .service(notification_handler::list_notifications)
+                .service(notification_handler::get_notifications)
+                .service(notification_handler::get_templates)
+                .service(notification_handler::send_notification)
+                .service(notification_handler::mark_all_as_read)
+                .service(notification_handler::get_notification)
+                .service(notification_handler::mark_as_read)
+                .service(notification_handler::delete_notification)
+        )
+        .service(
+            web::scope("/reports")
+                .service(report_handler::get_portfolio_summary)
+                .service(report_handler::get_loan_stats)
+                .service(report_handler::export_report)
+                .service(report_handler::get_reports)
+                .service(report_handler::generate_report)
+                .service(report_handler::schedule_report)
+                .service(report_handler::get_report_kpi)
+        )
+        .service(
+            web::scope("/users")
+                .service(user_handler::create_user)
+                .service(user_handler::get_users)
+                .service(user_handler::get_user)
+                .service(user_handler::update_user)
+                .service(user_handler::delete_user)
+        )
+        .service(
+            web::scope("/custom-fields")
+                .service(custom_field_handler::list_fields)
+                .service(custom_field_handler::get_field)
+                .service(custom_field_handler::create_field)
+                .service(custom_field_handler::update_field)
+                .service(custom_field_handler::delete_field)
+                .service(custom_field_handler::get_borrower_data)
+                .service(custom_field_handler::save_borrower_data)
+        )
+        .service(
+            web::scope("/communication")
+                .service(communication_handler::get_templates)
+                .service(communication_handler::get_template)
+                .service(communication_handler::create_template)
+                .service(communication_handler::update_template)
+                .service(communication_handler::send_message)
+                .service(communication_handler::send_bulk_messages)
+                .service(communication_handler::get_message_history)
+        )
+        .service(
+            web::scope("/payment-arrangements")
+                .service(payment_arrangement_handler::create_arrangement)
+                .service(payment_arrangement_handler::get_arrangement)
+                .service(payment_arrangement_handler::get_arrangement_by_loan)
+                .service(payment_arrangement_handler::approve_arrangement)
+                .service(payment_arrangement_handler::accept_arrangement)
+                .service(payment_arrangement_handler::reject_arrangement)
+                .service(payment_arrangement_handler::complete_arrangement)
+        )
+        .service(
+            web::scope("/onboarding")
+                .service(onboarding_handler::generate_cifid)
+                .service(onboarding_handler::create_savings)
+                .service(onboarding_handler::create_loan)
+        )
+        .service(
+            web::scope("/expenses")
+                .service(expense_handler::get_expenses)
+                .service(expense_handler::get_categories)
+                .service(expense_handler::create_expense)
+                .service(expense_handler::update_expense)
+                .service(expense_handler::delete_expense)
+                .service(expense_handler::approve_expense)
+                .service(expense_handler::get_expense_kpi)
+        )
+        .service(
+            web::scope("/collateral")
+                .service(collateral_handler::get_collaterals)
+                .service(collateral_handler::get_collateral)
+                .service(collateral_handler::create_collateral)
+                .service(collateral_handler::update_collateral)
+                .service(collateral_handler::appraise)
+                .service(collateral_handler::release)
+                .service(collateral_handler::delete_collateral)
+        )
+        .service(
+            web::scope("/health")
+                .service(health::health_check)
+        );
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/v1")
-            .service(health::health_check)
-            .service(
-                web::scope("/auth")
-                    .service(auth_handler::login)
-                    .service(auth_handler::refresh)
-                    .service(auth_handler::profile)
-                    .service(auth_handler::logout)
-            )
-            .service(
-                web::scope("/borrowers")
-                    .service(borrower_handler::list_borrowers)
-                    .service(borrower_handler::create_borrower)
-                    .service(borrower_handler::get_borrower)
-                    .service(borrower_handler::update_borrower)
-                    .service(borrower_handler::list_groups)
-                    .service(borrower_handler::list_guarantors)
-            )
-            .service(
-                web::scope("/loans")
-                    .service(loan_handler::list_loans)
-                    .service(loan_handler::submit_loan)
-                    .service(loan_handler::get_loan)
-                    .service(loan_handler::approve_loan)
-                    .service(loan_handler::disburse_loan)
-                    .service(loan_handler::get_loan_scoring)
-            )
-            .service(
-                web::scope("/loan-products")
-                    .service(loan_product_handler::list_products)
-                    .service(loan_product_handler::create_product)
-                    .service(loan_product_handler::get_product)
-            )
-            .service(
-                web::scope("/repayments")
-                    .service(repayment_handler::list_repayments)
-                    .service(repayment_handler::record_payment)
-                    .service(repayment_handler::list_arrears)
-            )
-            .service(
-                web::scope("/savings")
-                    .service(savings_handler::list_savings_accounts)
-                    .service(savings_handler::bulk_upload_deposits)
-                    .service(savings_handler::get_account_history)
-            )
-            .service(
-                web::scope("/accounting")
-                    .service(accounting_handler::get_ledger)
-                    .service(accounting_handler::get_statements)
-                    .service(accounting_handler::record_other_income)
-            )
-            .service(
-                web::scope("/reports")
-                    .service(report_handler::get_portfolio_summary)
-                    .service(report_handler::get_loan_stats)
-                    .service(report_handler::export_report)
-            )
-            .service(
-                web::scope("/settings")
-                    .service(setting_handler::list_branches)
-                    .service(setting_handler::create_branch)
-                    .service(setting_handler::list_staff)
-                    .service(setting_handler::create_staff)
-                    .service(setting_handler::get_audit_logs)
-            )
-            .service(
-                web::scope("/docs")
-                    .service(document_handler::upload_doc)
-            )
-            .service(
-                web::scope("/workflows")
-                    .service(workflow_handler::list_tasks)
-            )
-            .service(
-                web::scope("/investors")
-                    .service(investor_handler::list_investors)
-            )
-            .service(
-                web::scope("/notifications")
-                    .service(notification_handler::list_notifications)
-            )
-            .service(
-                web::scope("/users")
-                    .service(user_handler::create_user)
-                    .service(user_handler::get_users)
-                    .service(user_handler::get_user)
-                    .service(user_handler::update_user)
-                    .service(user_handler::delete_user)
-            )
-            .service(
-                web::scope("/health")
-                    .service(health::health_check)
-            )
+            .configure(configure_common_routes)
+    )
+    .service(
+        web::scope("/api")
+            .configure(configure_common_routes)
     )
     .service(
         SwaggerUi::new("/swagger-ui/{_:.*}")

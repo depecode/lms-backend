@@ -1,4 +1,4 @@
-use actix_web::{dev::Payload, Error, FromRequest, HttpRequest, HttpMessage, HttpResponse};
+use actix_web::{dev::Payload, Error, FromRequest, HttpRequest};
 use futures::future::{ready, Ready};
 use crate::auth::jwt::{decode_jwt, Claims};
 use uuid::Uuid;

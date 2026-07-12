@@ -76,4 +76,16 @@ impl<T> ApiResponse<T> {
             },
         }
     }
+
+    pub fn error(message: &str) -> Self {
+        Self {
+            success: false,
+            data: None,
+            message: message.to_string(),
+            meta: ResponseMeta {
+                timestamp: Utc::now(),
+                version: "v1".to_string(),
+            },
+        }
+    }
 }
