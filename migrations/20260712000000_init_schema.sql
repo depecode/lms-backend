@@ -117,35 +117,7 @@ CREATE TABLE IF NOT EXISTS borrower_group_members (
     PRIMARY KEY (group_id, borrower_id)
 );
 
-DROP TABLE IF EXISTS guarantors CASCADE;
 
-CREATE TABLE guarantors (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    borrower_id UUID REFERENCES borrowers(id) ON DELETE CASCADE NOT NULL,
-    loan_id UUID REFERENCES loans(id) ON DELETE CASCADE,
-    name VARCHAR(150) NOT NULL,
-    relationship VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    phone VARCHAR(50) NOT NULL,
-    address TEXT,
-    id_number VARCHAR(100),
-    guarantee_amount NUMERIC(15, 2) NOT NULL DEFAULT 0.00 CHECK (guarantee_amount >= 0),
-    liability_type VARCHAR(50) DEFAULT 'Joint and Several',
-    status VARCHAR(50) NOT NULL DEFAULT 'active',
-    employment_status VARCHAR(100),
-    income NUMERIC(15, 2),
-    net_worth NUMERIC(15, 2),
-    signature_date TIMESTAMP WITH TIME ZONE,
-    signature_evidence VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
-
-DROP TRIGGER IF EXISTS update_guarantors_modtime ON guarantors;
-CREATE TRIGGER update_guarantors_modtime
-    BEFORE UPDATE ON guarantors
-    FOR EACH ROW
-    EXECUTE FUNCTION update_modified_column();
 
 -- =========================================================================
 -- 4. LOAN & PRODUCT ENGINE
@@ -201,6 +173,36 @@ CREATE TABLE IF NOT EXISTS loans (
 DROP TRIGGER IF EXISTS update_loans_modtime ON loans;
 CREATE TRIGGER update_loans_modtime
     BEFORE UPDATE ON loans
+    FOR EACH ROW
+    EXECUTE FUNCTION update_modified_column();
+
+DROP TABLE IF EXISTS guarantors CASCADE;
+
+CREATE TABLE guarantors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    borrower_id UUID REFERENCES borrowers(id) ON DELETE CASCADE NOT NULL,
+    loan_id UUID REFERENCES loans(id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    relationship VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    address TEXT,
+    id_number VARCHAR(100),
+    guarantee_amount NUMERIC(15, 2) NOT NULL DEFAULT 0.00 CHECK (guarantee_amount >= 0),
+    liability_type VARCHAR(50) DEFAULT 'Joint and Several',
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    employment_status VARCHAR(100),
+    income NUMERIC(15, 2),
+    net_worth NUMERIC(15, 2),
+    signature_date TIMESTAMP WITH TIME ZONE,
+    signature_evidence VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+DROP TRIGGER IF EXISTS update_guarantors_modtime ON guarantors;
+CREATE TRIGGER update_guarantors_modtime
+    BEFORE UPDATE ON guarantors
     FOR EACH ROW
     EXECUTE FUNCTION update_modified_column();
 
