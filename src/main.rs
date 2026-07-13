@@ -22,12 +22,18 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to run database migrations");
     println!("Database migrations completed successfully.");
 
-    println!("Starting server at http://{}:{}", config.app_host, config.app_port);
+    // Dynamic Port Handling: Look for Render's PORT environment variable first,
+    // otherwise fall back to the config value for local development.
+    let port: u16 = std::env::var("PORT")
+        .unwrap_or_else(|_| config.app_port.to_string())
+        .parse()
+        .expect("PORT environment variable must be a valid number");
 
     let host = config.app_host.clone();
-    let port = config.app_port;
 
-    // 3. Start HttpServer
+    println!("Starting server at http://{}:{}", host, port);
+
+    // 4. Start HttpServer
     HttpServer::new(move || {
         let cors = actix_cors::Cors::default()
             .allow_any_origin()
