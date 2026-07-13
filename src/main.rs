@@ -29,7 +29,10 @@ async fn main() -> std::io::Result<()> {
         .parse()
         .expect("PORT environment variable must be a valid number");
 
-    let host = config.app_host.clone();
+    // 🛑 CRITICAL FIX: Render requires the host to be "0.0.0.0" to routing external traffic.
+    // We check for the APP_HOST env var, but force "0.0.0.0" as a foolproof fallback.
+    let host = std::env::var("APP_HOST")
+        .unwrap_or_else(|_| "0.0.0.0".to_string());
 
     println!("Starting server at http://{}:{}", host, port);
 
