@@ -4,9 +4,11 @@ services:
     env: docker
     plan: free
     healthCheckPath: /api/v1/health/health
+    # ⏱️ Gives your database migrations up to 30 seconds to finish before checking the port
+    initialDelaySeconds: 30 
     envVars:
       - key: DATABASE_URL
-        sync: false  # This tells Render you will paste your Supabase URL manually
+        sync: false  
       - key: RUST_LOG
         value: info
       - key: APP_HOST

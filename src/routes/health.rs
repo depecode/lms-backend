@@ -9,7 +9,8 @@ use serde_json::json;
     ),
     tag = "Health"
 )]
-#[get("/health")]
+// 🛑 FIX: Change the routing path to match the full API path explicitly
+#[get("/api/v1/health/health")]
 pub async fn health_check() -> impl Responder {
     HttpResponse::Ok().json(json!({
         "status": "ok"
