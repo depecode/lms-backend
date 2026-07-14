@@ -1,4 +1,4 @@
-use actix_web::{get, post, web, HttpResponse, Responder};
+use actix_web::{get, post, put, delete, web, HttpResponse, Responder};
 use crate::models::response::ApiResponse;
 use crate::error::AppError;
 use sqlx::PgPool;
@@ -17,6 +17,7 @@ pub struct Branch {
     pub phone: Option<String>,
     pub email: Option<String>,
     pub status: String,
+    pub manager: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -60,6 +61,20 @@ pub struct CreateBranchRequest {
     pub city: Option<String>,
     pub phone: Option<String>,
     pub email: Option<String>,
+    pub manager: Option<String>,
+}
+
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateBranchRequest {
+    pub name: Option<String>,
+    pub code: Option<String>,
+    pub address: Option<String>,
+    pub city: Option<String>,
+    pub phone: Option<String>,
+    pub email: Option<String>,
+    pub status: Option<String>,
+    pub manager: Option<String>,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
@@ -86,7 +101,7 @@ pub async fn list_branches(
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder, AppError> {
     let branches = sqlx::query_as::<_, Branch>(
-        "SELECT id, name, code, address, city, phone, email, status, created_at, updated_at FROM branches ORDER BY name ASC"
+        "SELECT id, name, code, address, city, phone, email, status, manager, created_at, updated_at FROM branches ORDER BY name ASC"
     )
     .fetch_all(pool.get_ref())
     .await?;
@@ -121,8 +136,8 @@ pub async fn create_branch(
 
     let id = sqlx::query_scalar::<_, Uuid>(
         r#"
-        INSERT INTO branches (name, code, address, city, phone, email, status)
-        VALUES ($1, $2, $3, $4, $5, $6, 'Active')
+        INSERT INTO branches (name, code, address, city, phone, email, status, manager)
+        VALUES ($1, $2, $3, $4, $5, $6, 'Active', $7)
         RETURNING id
         "#
     )
@@ -132,17 +147,145 @@ pub async fn create_branch(
     .bind(&payload.city)
     .bind(&payload.phone)
     .bind(&payload.email)
+    .bind(&payload.manager)
     .fetch_one(pool.get_ref())
     .await?;
 
     let branch = sqlx::query_as::<_, Branch>(
-        "SELECT id, name, code, address, city, phone, email, status, created_at, updated_at FROM branches WHERE id = $1"
+        "SELECT id, name, code, address, city, phone, email, status, manager, created_at, updated_at FROM branches WHERE id = $1"
     )
     .bind(id)
     .fetch_one(pool.get_ref())
     .await?;
 
     Ok(HttpResponse::Created().json(ApiResponse::success(branch, "Branch created successfully")))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/settings/branches/{id}",
+    responses(
+        (status = 200, description = "Get branch by ID", body = ApiResponse<Branch>)
+    ),
+    tag = "Settings"
+)]
+#[get("/branches/{id}")]
+pub async fn get_branch(
+    pool: web::Data<PgPool>,
+    id: web::Path<Uuid>,
+) -> Result<impl Responder, AppError> {
+    let branch = sqlx::query_as::<_, Branch>(
+        "SELECT id, name, code, address, city, phone, email, status, manager, created_at, updated_at FROM branches WHERE id = $1"
+    )
+    .bind(id.into_inner())
+    .fetch_optional(pool.get_ref())
+    .await?
+    .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(branch, "Branch retrieved successfully")))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/settings/branches/{id}",
+    responses(
+        (status = 200, description = "Branch updated", body = ApiResponse<Branch>)
+    ),
+    tag = "Settings"
+)]
+#[put("/branches/{id}")]
+pub async fn update_branch(
+    pool: web::Data<PgPool>,
+    id: web::Path<Uuid>,
+    payload: web::Json<UpdateBranchRequest>,
+) -> Result<impl Responder, AppError> {
+    let branch_id = id.into_inner();
+
+    // Check if code exists for other branches
+    if let Some(ref code) = payload.code {
+        let code_exists = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM branches WHERE code = $1 AND id != $2)"
+        )
+        .bind(code)
+        .bind(branch_id)
+        .fetch_one(pool.get_ref())
+        .await?;
+
+        if code_exists {
+            return Err(AppError::BadRequest("Branch code already exists".to_string()));
+        }
+    }
+
+    // Update branch in database
+    sqlx::query(
+        r#"
+        UPDATE branches
+        SET name = COALESCE($1, name),
+            code = COALESCE($2, code),
+            address = COALESCE($3, address),
+            city = COALESCE($4, city),
+            phone = COALESCE($5, phone),
+            email = COALESCE($6, email),
+            status = COALESCE($7, status),
+            manager = COALESCE($8, manager)
+        WHERE id = $9
+        "#
+    )
+    .bind(&payload.name)
+    .bind(&payload.code)
+    .bind(&payload.address)
+    .bind(&payload.city)
+    .bind(&payload.phone)
+    .bind(&payload.email)
+    .bind(&payload.status)
+    .bind(&payload.manager)
+    .bind(branch_id)
+    .execute(pool.get_ref())
+    .await?;
+
+    let branch = sqlx::query_as::<_, Branch>(
+        "SELECT id, name, code, address, city, phone, email, status, manager, created_at, updated_at FROM branches WHERE id = $1"
+    )
+    .bind(branch_id)
+    .fetch_one(pool.get_ref())
+    .await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(branch, "Branch updated successfully")))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/settings/branches/{id}",
+    responses(
+        (status = 200, description = "Branch deleted", body = ApiResponse<serde_json::Value>)
+    ),
+    tag = "Settings"
+)]
+#[delete("/branches/{id}")]
+pub async fn delete_branch(
+    pool: web::Data<PgPool>,
+    id: web::Path<Uuid>,
+) -> Result<impl Responder, AppError> {
+    let branch_id = id.into_inner();
+
+    // Check if staff are linked to this branch
+    let staff_exists = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM staff WHERE branch_id = $1)"
+    )
+    .bind(branch_id)
+    .fetch_one(pool.get_ref())
+    .await?;
+
+    if staff_exists {
+        return Err(AppError::BadRequest("Cannot delete branch: staff members are still assigned to it".to_string()));
+    }
+
+    sqlx::query("DELETE FROM branches WHERE id = $1")
+        .bind(branch_id)
+        .execute(pool.get_ref())
+        .await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({}), "Branch deleted successfully")))
 }
 
 #[utoipa::path(

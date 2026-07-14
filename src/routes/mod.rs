@@ -91,6 +91,9 @@ use crate::models::response::{ApiResponse, ResponseMeta, PaginatedResponse, Pagi
         report_handler::get_report_kpi,
         setting_handler::list_branches,
         setting_handler::create_branch,
+        setting_handler::get_branch,
+        setting_handler::update_branch,
+        setting_handler::delete_branch,
         setting_handler::list_staff,
         setting_handler::create_staff,
         setting_handler::get_audit_logs,
@@ -293,14 +296,20 @@ fn configure_common_routes(cfg: &mut web::ServiceConfig) {
             web::scope("/settings")
                 .service(setting_handler::list_branches)
                 .service(setting_handler::create_branch)
+                .service(setting_handler::get_branch)
+                .service(setting_handler::update_branch)
+                .service(setting_handler::delete_branch)
                 .service(setting_handler::list_staff)
                 .service(setting_handler::create_staff)
                 .service(setting_handler::get_audit_logs)
         )
         .service(
-            web::scope("/branches")
+            web::scope("")
                 .service(setting_handler::list_branches)
                 .service(setting_handler::create_branch)
+                .service(setting_handler::get_branch)
+                .service(setting_handler::update_branch)
+                .service(setting_handler::delete_branch)
         )
         .service(
             web::scope("/documents")

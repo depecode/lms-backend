@@ -14,10 +14,12 @@ pub struct Borrower {
     pub last_name: String,
     pub email: String,
     pub phone: String,
+    pub id_number: String,
     pub date_of_birth: NaiveDate,
     pub address: Option<String>,
     pub city: Option<String>,
     pub country: Option<String>,
+    pub kyc_status: String,
     pub status: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -51,6 +53,7 @@ pub struct CreateBorrowerRequest {
     pub last_name: String,
     pub email: String,
     pub phone: String,
+    pub id_number: String,
     pub date_of_birth: NaiveDate,
     pub address: Option<String>,
     pub city: Option<String>,
@@ -64,10 +67,12 @@ pub struct UpdateBorrowerRequest {
     pub last_name: Option<String>,
     pub email: Option<String>,
     pub phone: Option<String>,
+    pub id_number: Option<String>,
     pub date_of_birth: Option<NaiveDate>,
     pub address: Option<String>,
     pub city: Option<String>,
     pub country: Option<String>,
+    pub kyc_status: Option<String>,
     pub status: Option<String>,
 }
 
@@ -86,8 +91,8 @@ pub async fn list_borrowers(
     let borrowers = sqlx::query_as::<_, Borrower>(
         r#"
         SELECT 
-            id, first_name, last_name, email, phone, date_of_birth, 
-            address, city, country, status, created_at, updated_at
+            id, first_name, last_name, email, phone, id_number, date_of_birth, 
+            address, city, country, kyc_status, status, created_at, updated_at
         FROM borrowers
         ORDER BY created_at DESC
         "#,
@@ -126,9 +131,9 @@ pub async fn create_borrower(
     let id = sqlx::query_scalar::<_, Uuid>(
         r#"
         INSERT INTO borrowers (
-            first_name, last_name, email, phone, date_of_birth, address, city, country, status
+            first_name, last_name, email, phone, id_number, date_of_birth, address, city, country, kyc_status, status
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, 'Active'
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', 'active'
         ) RETURNING id
         "#
     )
@@ -136,6 +141,7 @@ pub async fn create_borrower(
     .bind(&payload.last_name)
     .bind(&payload.email)
     .bind(&payload.phone)
+    .bind(&payload.id_number)
     .bind(payload.date_of_birth)
     .bind(&payload.address)
     .bind(&payload.city)
@@ -146,8 +152,8 @@ pub async fn create_borrower(
     let borrower = sqlx::query_as::<_, Borrower>(
         r#"
         SELECT 
-            id, first_name, last_name, email, phone, date_of_birth, 
-            address, city, country, status, created_at, updated_at
+            id, first_name, last_name, email, phone, id_number, date_of_birth, 
+            address, city, country, kyc_status, status, created_at, updated_at
         FROM borrowers
         WHERE id = $1
         "#,
@@ -181,8 +187,8 @@ pub async fn get_borrower(
     let borrower = sqlx::query_as::<_, Borrower>(
         r#"
         SELECT 
-            id, first_name, last_name, email, phone, date_of_birth, 
-            address, city, country, status, created_at, updated_at
+            id, first_name, last_name, email, phone, id_number, date_of_birth, 
+            address, city, country, kyc_status, status, created_at, updated_at
         FROM borrowers
         WHERE id = $1
         "#,
@@ -220,8 +226,8 @@ pub async fn update_borrower(
     let existing = sqlx::query_as::<_, Borrower>(
         r#"
         SELECT 
-            id, first_name, last_name, email, phone, date_of_birth, 
-            address, city, country, status, created_at, updated_at
+            id, first_name, last_name, email, phone, id_number, date_of_birth, 
+            address, city, country, kyc_status, status, created_at, updated_at
         FROM borrowers
         WHERE id = $1 FOR UPDATE
         "#,
@@ -235,30 +241,34 @@ pub async fn update_borrower(
     let last_name = payload.last_name.as_ref().unwrap_or(&existing.last_name);
     let email = payload.email.as_ref().unwrap_or(&existing.email);
     let phone = payload.phone.as_ref().unwrap_or(&existing.phone);
+    let id_number = payload.id_number.as_ref().unwrap_or(&existing.id_number);
     let date_of_birth = payload.date_of_birth.unwrap_or(existing.date_of_birth);
     let address = payload.address.as_ref().or(existing.address.as_ref());
     let city = payload.city.as_ref().or(existing.city.as_ref());
     let country = payload.country.as_ref().or(existing.country.as_ref());
+    let kyc_status = payload.kyc_status.as_ref().unwrap_or(&existing.kyc_status);
     let status = payload.status.as_ref().unwrap_or(&existing.status);
 
     let updated = sqlx::query_as::<_, Borrower>(
         r#"
         UPDATE borrowers SET
-            first_name = $1, last_name = $2, email = $3, phone = $4,
-            date_of_birth = $5, address = $6, city = $7, country = $8, status = $9, updated_at = NOW()
-        WHERE id = $10
-        RETURNING id, first_name, last_name, email, phone, date_of_birth, 
-            address, city, country, status, created_at, updated_at
+            first_name = $1, last_name = $2, email = $3, phone = $4, id_number = $5,
+            date_of_birth = $6, address = $7, city = $8, country = $9, kyc_status = $10, status = $11, updated_at = NOW()
+        WHERE id = $12
+        RETURNING id, first_name, last_name, email, phone, id_number, date_of_birth, 
+            address, city, country, kyc_status, status, created_at, updated_at
         "#
     )
     .bind(first_name)
     .bind(last_name)
     .bind(email)
     .bind(phone)
+    .bind(id_number)
     .bind(date_of_birth)
     .bind(address)
     .bind(city)
     .bind(country)
+    .bind(kyc_status)
     .bind(status)
     .bind(id)
     .fetch_one(&mut *tx)
