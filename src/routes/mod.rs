@@ -304,14 +304,6 @@ fn configure_common_routes(cfg: &mut web::ServiceConfig) {
                 .service(setting_handler::get_audit_logs)
         )
         .service(
-            web::scope("")
-                .service(setting_handler::list_branches)
-                .service(setting_handler::create_branch)
-                .service(setting_handler::get_branch)
-                .service(setting_handler::update_branch)
-                .service(setting_handler::delete_branch)
-        )
-        .service(
             web::scope("/documents")
                 .service(document_handler::upload_doc)
                 .service(document_handler::get_docs)
@@ -423,12 +415,12 @@ fn configure_common_routes(cfg: &mut web::ServiceConfig) {
         .service(
             web::scope("/expenses")
                 .service(expense_handler::get_expenses)
-                .service(expense_handler::get_categories)
                 .service(expense_handler::create_expense)
+                .service(expense_handler::get_categories)
+                .service(expense_handler::get_expense_kpi)
                 .service(expense_handler::update_expense)
                 .service(expense_handler::delete_expense)
                 .service(expense_handler::approve_expense)
-                .service(expense_handler::get_expense_kpi)
         )
         .service(
             web::scope("/collateral")
