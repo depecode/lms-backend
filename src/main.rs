@@ -20,13 +20,25 @@ async fn main() -> std::io::Result<()> {
     // 3. Initialize database connection
     let pool = establish_connection(&config).await;
 
+    // // Run database migrations on startup
+    // println!("Running database migrations...");
+    // sqlx::migrate!("./migrations")
+    //     .run(&pool)
+    //     .await
+    //     .expect("Failed to run database migrations");
+    // println!("Database migrations completed successfully.");
+
     // Run database migrations on startup
     println!("Running database migrations...");
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("Failed to run database migrations");
-    println!("Database migrations completed successfully.");
+    match sqlx::migrate!("./migrations").run(&pool).await {
+        Ok(_) => println!("Database migrations completed successfully."),
+        Err(e) => {
+            eprintln!("CRITICAL: Database migrations failed: {}", e);
+            // Optional: Comment out std::process::exit if you want the server 
+            // to still boot up anyway so you can check logs/health pins.
+            std::process::exit(1); 
+        }
+    }
 
     // Dynamic Port Handling: Look for Render's PORT environment variable first
     let port: u16 = std::env::var("PORT")
