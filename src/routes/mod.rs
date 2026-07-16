@@ -302,6 +302,14 @@ fn configure_common_routes(cfg: &mut web::ServiceConfig) {
                 .service(setting_handler::list_staff)
                 .service(setting_handler::create_staff)
                 .service(setting_handler::get_audit_logs)
+                .service(setting_handler::get_roles)
+                .service(setting_handler::create_role)
+                .service(setting_handler::update_role)
+                .service(setting_handler::delete_role)
+                .service(setting_handler::list_settings)
+                .service(setting_handler::save_setting)
+                .service(setting_handler::get_company_profile)
+                .service(setting_handler::update_company_profile)
         )
         .service(
             web::scope("/documents")
@@ -395,6 +403,7 @@ fn configure_common_routes(cfg: &mut web::ServiceConfig) {
                 .service(communication_handler::send_message)
                 .service(communication_handler::send_bulk_messages)
                 .service(communication_handler::get_message_history)
+                .service(communication_handler::get_global_message_history)
         )
         .service(
             web::scope("/payment-arrangements")

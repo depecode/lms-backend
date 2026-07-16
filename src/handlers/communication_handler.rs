@@ -350,3 +350,45 @@ pub async fn get_message_history(
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(history, "Message history retrieved successfully")))
 }
+
+#[derive(Debug, Serialize, sqlx::FromRow, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GlobalCommunicationHistory {
+    pub id: Uuid,
+    pub borrower_id: Uuid,
+    pub borrower_name: String,
+    pub recipient: String,
+    pub r#type: String,
+    pub subject: Option<String>,
+    pub body: String,
+    pub status: String,
+    pub sent_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/communication/messages/history",
+    responses(
+        (status = 200, description = "Get global message history", body = ApiResponse<Vec<GlobalCommunicationHistory>>)
+    ),
+    tag = "Communication"
+)]
+#[get("/messages/history")]
+pub async fn get_global_message_history(
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder, AppError> {
+    let history = sqlx::query_as::<_, GlobalCommunicationHistory>(
+        r#"
+        SELECT c.id, c.borrower_id, (b.first_name || ' ' || b.last_name) as borrower_name,
+               c.recipient, c.type, c.subject, c.body, c.status, c.sent_at, c.created_at
+        FROM communications c
+        JOIN borrowers b ON c.borrower_id = b.id
+        ORDER BY c.created_at DESC
+        "#
+    )
+    .fetch_all(pool.get_ref())
+    .await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(history, "Global message history retrieved successfully")))
+}
