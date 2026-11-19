@@ -27,7 +27,7 @@ utoipa = { version = "5", features = ["actix_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "8", features = ["actix-web", "debug-embed", "reqwest"] }
 
 # Database (PostgreSQL with async driver)
-sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "uuid", "chrono", "time", "macros", "tls-native-tls"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono", "time", "macros", "tls-native-tls"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 
